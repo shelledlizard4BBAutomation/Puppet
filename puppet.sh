@@ -37,18 +37,19 @@ function subdomains(){
 	if [ $TYPE = "list" ] 
 	then		
 		printf "    ${red}Running Subfinder...${reset}\n"
-		#subfinder -dL $list -all -silent -o subs1.txt &
-		#printf "    ${red}Running amass...${reset}\n"
-		#amass enum -df $list -silent -o subs2.txt             &
-		#printf "    ${red}Running amass bruteforce...${reset}\n"
-		#amass enum -brute -df $list -silent -o subs3.txt      &
+		subfinder -dL $list -all -silent -o subs1.txt &
+		printf "    ${red}Running amass...${reset}\n"
+		amass enum -df $list -silent -o subs2.txt             &
+		printf "    ${red}Running amass bruteforce...${reset}\n"
+		amass enum -brute -df $list -silent -o subs3.txt      &
+		wait
 	else
 		printf "    ${red}Running Subfinder...${reset}\n"
-		#subfinder -d $domain -all -silent -o subs1.txt &
+		subfinder -d $domain -all -silent -o subs1.txt &
 		printf "    ${red}Running amass...${reset}\n"
-		#amass enum -d $domain -silent -o subs2.txt             &
+		amass enum -d $domain -silent -o subs2.txt             &
 		printf "    ${red}Running amass bruteforce...${reset}\n"
-		#amass enum -brute -d $domain -silent -o subs3.txt      &
+		amass enum -brute -d $domain -silent -o subs3.txt      &
 		wait
 	fi
 }

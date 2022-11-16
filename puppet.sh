@@ -37,21 +37,39 @@ function subdomains(){
 	if [ $TYPE = "list" ] 
 	then		
 		printf "    ${red}Running Subfinder...${reset}\n"
-		subfinder -dL $list -all -silent -o subs1.txt &
-		printf "    ${red}Running amass...${reset}\n"
-		amass enum -df $list -silent -o subs2.txt             &
-		printf "    ${red}Running amass bruteforce...${reset}\n"
-		amass enum -brute -df $list -silent -o subs3.txt      &
+		#subfinder -dL $list -all -silent -o subs1.txt &
+		#printf "    ${red}Running amass...${reset}\n"
+		#amass enum -df $list -silent -o subs2.txt             &
+		#printf "    ${red}Running amass bruteforce...${reset}\n"
+		#amass enum -brute -df $list -silent -o subs3.txt      &
 	else
 		printf "    ${red}Running Subfinder...${reset}\n"
-		subfinder -d $domain -all -silent -o subs1.txt &
+		#subfinder -d $domain -all -silent -o subs1.txt &
 		printf "    ${red}Running amass...${reset}\n"
-		amass enum -d $domain -silent -o subs2.txt             &
+		#amass enum -d $domain -silent -o subs2.txt             &
 		printf "    ${red}Running amass bruteforce...${reset}\n"
-		amass enum -brute -d $domain -silent -o subs3.txt      &
+		#amass enum -brute -d $domain -silent -o subs3.txt      &
+		wait
 	fi
 }
 
+function fingerprint(){
+	printf "${red}Running HTTPX for ports 80,443,8080...${reset}\n"
+	cat subs* | anew > allSubs.txt
+	cat allSubs.txt | httpx -ports 80,443,8080 -tech-detect -silent -o allAlive.txt
+
+	printf "${red}Fingerprinting Webpages...${reset}\n"
+	cat allAlive.txt | grep "Wordpress" > wordpress.txt
+	cat allAlive.txt | grep "Adobe Experience Manager" > aem.txt
+	cat allAlive.txt | grep "Drupal" > drupal.txt
+}
+
+function nucleiScan(){
+	printf "${red}Running Nuclei Scan...${reset}\n"
+	git -C ~/nuclei-templates stash
+	git -C ~/nuclei-templates pull
+	cat allAlive.txt | nuclei -t ~/nuclei-templates -es info -o nuclei.txt
+}
 
 SHORT=l:,d:,h
 LONG=list:,domain:,help
@@ -100,5 +118,5 @@ then
 	TYPE="domain"
 	subdomains
 fi
-
-
+fingerprint
+nucleiScan

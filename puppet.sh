@@ -31,28 +31,6 @@ function banner(){
         printf " \nVersion 0.1                                                 by @shelled${reset}\n"
 }
 
-
-function fingerprint(){
-        printf "${red}\nRunning HTTPX for port scan...${reset}\n"
-        cat subs* | anew > allSubs.txt
-        cat allSubs.txt | httpx -ports 80,443,8080,81,3000,3001,8000,8443 -tech-detect -silent -threads 200 -status-code -title -o allScanned.txt
-        cat allScanned.txt | awk -F\[ '{print $1}' > allAlive.txt
-
-        printf "${red}\nFingerprinting Webpages...${reset}\n"
-        mkdir -p CMS
-        cat allAlive.txt | grep "Wordpress" > CMS/wordpress.txt
-        cat allAlive.txt | grep "Adobe Experience Manager" > CMS/aem.txt
-        cat allAlive.txt | grep "Drupal" > CMS/drupal.txt
-}
-
-
-function nucleiScan(){
-        printf "${red}\nRunning Nuclei Scan...${reset}\n"
-        git -C ~/nuclei-templates stash
-        git -C ~/nuclei-templates pull
-        cat allAlive.txt | nuclei -t ~/nuclei-templates -es info -o nuclei.txt
-}
-
 SHORT=l:,d:,h
 LONG=list:,domain:,help
 OPTS=$(getopt -a -n puppet --options $SHORT --longoptions $LONG -- "$@")
@@ -95,41 +73,81 @@ if [ "$list" ] && [ -z "$domain" ]
 then
         printf "\n${red}Starting Subdomain Enumeration\n${reset}"
         printf "    ${red}Running Subfinder...${reset}\n"
-        subfinder -dL $list -all -silent -o subs1.txt &
+        subfinder -dL $list -all -o subs1.txt
         printf "    ${red}Running amass...${reset}\n"
-        amass enum -df $list -silent -o subs2.txt &
+        amass enum -df $list -o subs2.txt
         printf "    ${red}Running amass bruteforce...${reset}\n"
-        amass enum -brute -active -df $list -silent -o subs3.txt &
-        wait
+        amass enum -brute -active -df $list -o subs3.txt
 elif [ -z "$list" ] && [ "$domain" ]
 then
         printf "\n${red}Starting Subdomain Enumeration\n${reset}"
         printf "    ${red}Running Subfinder...${reset}\n"
-        subfinder -d $domain -all -silent -o subs1.txt &
+        subfinder -d $domain -all -o subs1.txt
         printf "    ${red}Running amass...${reset}\n"
-        amass enum -d $domain -silent -o subs2.txt &
+        amass enum -d $domain -o subs2.txt
         printf "    ${red}Running amass bruteforce...${reset}\n"
-        amass enum -brute -active -d $domain -silent -o subs3.txt &
-        wait
+        amass enum -brute -active -d $domain -o subs3.txt
 fi
-fingerprint
-containered
+
+# Subdomain Permutations
+printf "${red}\nRunning Subdomain Permutations with RipGen...${reset}\n"
+cat subs* | anew allSubs.txt
+cat allSubs.txt | ripgen > ripgen.txt
+numPerms=($(wc ripgen.txt))
+printf "${red}\nNumber of Subdomain Permutations: ${reset}"
+printf "$numPerms[0]\n"
+if [numPerms[0] -gt 1000000]
+then
+        printf "${red}Taking first 2,000,000 permutations due to configutation...\n${reset}"
+fi
+head -n 2000000 ripgen > allPerms.txt
+
+# Subdomain Permutations Duplicate Removal
+printf "${red}\nRemoving Duplicates from Subdomain Permutation...${reset}\n"
+cat allPerms.txt | sort -u > allPermsTrimmed.txt
+numPermsTrimmed=($(wc allPermsTrimmed.txt))
+printf "${red}\nNumber of Subdomain Permutations Trimmed: ${reset}"
+printf "$numPermsTrimmed[0]\n"
+
+# DNS Resolution
+printf "${red}\nRunning DNS Resolution with dnsx on Permutation Subdomains...${reset}\n"
+cat allPermsTrimmed.txt | dnsx -o allAlivePerms.txt
+
+printf "${red}\nRunning DNS Resolution with dnsx on Recon Subdomains...${reset}\n"
+cat allSubs.txt | dnsx -o allAliveRecon.txt
+
+# Merging Permutations with Subdomains
+printf "${red}\nMerging Permutations and Subdomains...${reset}\n"
+cp allAliveRecon.txt allAlive.txt
+cat allAlivePerms.txt | anew allAlive.txt
+
+# Port Scanning
+printf "${red}\nRunning Port Scan with naabu...${reset}\n"
+naabu -l allAlive.txt -p- -o allPorts.txt
+
+# Finger Printing
+printf "${red}\nFingerprinting Webpages...${reset}\n"
+cat allAlive.txt | httpx -ports 80,443,8080,8443 -tech-detect -silent -threads 200 -status-code -title -follow-redirects -o allScanned.txt
+cat allScanned.txt | awk -F\[ '{print $1}' > allAliveWeb.txt
+mkdir -p CMS
+cat allAliveWeb.txt | grep -i "Wordpress" > CMS/wordpress.txt
+cat allAliveWeb.txt | grep -i "Adobe Experience Manager" > CMS/aem.txt
+cat allAliveWeb.txt | grep -i "Drupal" > CMS/drupal.txt
 
 # Screenshots
 printf "${red}\nScreenshot with Aquatone...${reset}\n"
-cat allAlive.txt | aquatone -chrome-path ./chrome -silent &
+cat allAliveWeb.txt | aquatone -chrome-path /home/shelled/tools/Puppet/chrome
 
 # gau
 printf "${red}\nGetting URLs via gau...${reset}\n"
-cat allAlive.txt | gau --subs --o allUrls1.txt & > /dev/null
+cat allAlive.txt | gau --subs --threads 200 --o allUrls1.txt
 
 # katana
 printf "${red}\nGetting URLs via katana...${reset}\n"
-katana -list allAlive.txt -jc -f qurl -c 50 -d 5 -kf all -silent -o allUrls2.txt &
-wait
+katana -list allAliveWeb.txt -jc -f qurl -c 50 -d 5 -kf all -o allUrls2.txt
 
 # gf
-cat allUrls* | anew allUrls.txt > /dev/null
+cat allUrls* | anew allUrls.txt
 mkdir -p GF
 cat allUrls.txt | gf xss > GF/xss
 cat allUrls.txt | gf sqli > GF/sqli
@@ -142,12 +160,11 @@ cat allUrls.txt | gf rce > GF/rce
 cat allUrls.txt | gf interestingEXT > GF/interestingEXT
 cat allUrls.txt | gf img-traversal > GF/img-traversal
 
-# Subdomain takeover checks
-printf "${red}\nSQL Injection Scanning with SQLmap...${reset}\n"
-subzy -targets allSubs.txt
-
 # Vulnscanning
-nucleiScan
+printf "${red}\nRunning Nuclei Scan...${reset}\n"
+git -C ~/nuclei-templates stash
+git -C ~/nuclei-templates pull
+cat allAliveWeb.txt | nuclei -t ~/nuclei-templates -es info -o nuclei.txt
 
 # SQLInjection Scanning
 printf "${red}\nSQL Injection Scanning with SQLmap...${reset}\n"
@@ -155,8 +172,4 @@ sqlmap -m GF/sqli --batch --random-agent --level 1
 
 # SSTI Scanning
 printf "${red}\nSSTI Scanning with Tplmap...${reset}\n"
-cat GD/ssti | while read line; do python3 /home/shelled/tools/tplmap/tplmap.py -u $line; done
-
-# Vulnscanning
-printf "${red}\nVulnerability Scanning with Nmap...${reset}\n"
-nmap -sV -iL allSubs.txt -oN scaned-port.txt --script=vuln
+cat GF/ssti | while read line; do python3 /home/shelled/tools/tplmap/tplmap.py -u $line; done

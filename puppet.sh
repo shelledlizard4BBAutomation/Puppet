@@ -92,11 +92,11 @@ fi
 # Subdomain Permutations
 printf "${red}\nRunning Subdomain Permutations with RipGen...${reset}\n"
 cat subs* | anew allSubs.txt
-cat allSubs.txt | ripgen > ripgen.txt
+cat allSubs.txt | ripgen.txt > ripgen.txt
 numPerms=($(wc ripgen.txt))
 printf "${red}\nNumber of Subdomain Permutations: ${reset}"
-printf "$numPerms[0]\n"
-if [numPerms[0] -gt 1000000]
+printf "$numPerms\n"
+if [ $numPerms -gt 2000000 ]
 then
         printf "${red}Taking first 2,000,000 permutations due to configutation...\n${reset}"
 fi
@@ -107,7 +107,7 @@ printf "${red}\nRemoving Duplicates from Subdomain Permutation...${reset}\n"
 cat allPerms.txt | sort -u > allPermsTrimmed.txt
 numPermsTrimmed=($(wc allPermsTrimmed.txt))
 printf "${red}\nNumber of Subdomain Permutations Trimmed: ${reset}"
-printf "$numPermsTrimmed[0]\n"
+printf "$numPermsTrimmed\n"
 
 # DNS Resolution
 printf "${red}\nRunning DNS Resolution with dnsx on Permutation Subdomains...${reset}\n"
@@ -133,10 +133,6 @@ mkdir -p CMS
 cat allAliveWeb.txt | grep -i "Wordpress" > CMS/wordpress.txt
 cat allAliveWeb.txt | grep -i "Adobe Experience Manager" > CMS/aem.txt
 cat allAliveWeb.txt | grep -i "Drupal" > CMS/drupal.txt
-
-# Screenshots
-printf "${red}\nScreenshot with Aquatone...${reset}\n"
-cat allAliveWeb.txt | aquatone -chrome-path /home/shelled/tools/Puppet/chrome
 
 # gau
 printf "${red}\nGetting URLs via gau...${reset}\n"

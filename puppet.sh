@@ -92,7 +92,7 @@ fi
 # Subdomain Permutations
 printf "${red}\nRunning Subdomain Permutations with RipGen...${reset}\n"
 cat subs* | anew allSubs.txt
-cat allSubs.txt | ripgen.txt > ripgen.txt
+cat allSubs.txt | ripgen > ripgen.txt
 numPerms=($(wc ripgen.txt))
 printf "${red}\nNumber of Subdomain Permutations: ${reset}"
 printf "$numPerms\n"
@@ -100,7 +100,7 @@ if [ $numPerms -gt 2000000 ]
 then
         printf "${red}Taking first 2,000,000 permutations due to configutation...\n${reset}"
 fi
-head -n 2000000 ripgen > allPerms.txt
+head -n 2000000 ripgen.txt > allPerms.txt
 
 # Subdomain Permutations Duplicate Removal
 printf "${red}\nRemoving Duplicates from Subdomain Permutation...${reset}\n"

@@ -89,61 +89,28 @@ then
         amass enum -brute -active -d $domain -o subs3.txt
 fi
 
-# Subdomain Permutations
-printf "${red}\nRunning Subdomain Permutations with RipGen...${reset}\n"
-cat subs* | anew allSubs.txt
-cat allSubs.txt | ripgen > ripgen.txt
-numPerms=($(wc ripgen.txt))
-printf "${red}\nNumber of Subdomain Permutations: ${reset}"
-printf "$numPerms\n"
-if [ $numPerms -gt 2000000 ]
-then
-        printf "${red}Taking first 2,000,000 permutations due to configutation...\n${reset}"
-fi
-head -n 2000000 ripgen.txt > allPerms.txt
-
-# Subdomain Permutations Duplicate Removal
-printf "${red}\nRemoving Duplicates from Subdomain Permutation...${reset}\n"
-cat allPerms.txt | sort -u > allPermsTrimmed.txt
-numPermsTrimmed=($(wc allPermsTrimmed.txt))
-printf "${red}\nNumber of Subdomain Permutations Trimmed: ${reset}"
-printf "$numPermsTrimmed\n"
-
-# DNS Resolution
-printf "${red}\nRunning DNS Resolution with dnsx on Permutation Subdomains...${reset}\n"
-cat allPermsTrimmed.txt | dnsx -o allAlivePerms.txt
-
-printf "${red}\nRunning DNS Resolution with dnsx on Recon Subdomains...${reset}\n"
-cat allSubs.txt | dnsx -o allAliveRecon.txt
-
-# Merging Permutations with Subdomains
-printf "${red}\nMerging Permutations and Subdomains...${reset}\n"
-cp allAliveRecon.txt allAlive.txt
-cat allAlivePerms.txt | anew allAlive.txt
-
-# Port Scanning
-printf "${red}\nRunning Port Scan with naabu...${reset}\n"
-naabu -l allAlive.txt -p- -o allPorts.txt
+cat subs* | anew subs.txt
 
 # Finger Printing
 printf "${red}\nFingerprinting Webpages...${reset}\n"
-cat allAlive.txt | httpx -ports 80,443,8080,8443 -tech-detect -silent -threads 200 -status-code -title -follow-redirects -o allScanned.txt
-cat allScanned.txt | awk -F\[ '{print $1}' > allAliveWeb.txt
+cat subs.txt | httpx -ports 80,443,8080,8443 -tech-detect -silent -threads 200 -status-code -title -follow-redirects -o scanned.txt
+cat scanned.txt | awk -F\[ '{print $1}' > alive.txt
 mkdir -p CMS
-cat allAliveWeb.txt | grep -i "Wordpress" > CMS/wordpress.txt
-cat allAliveWeb.txt | grep -i "Adobe Experience Manager" > CMS/aem.txt
-cat allAliveWeb.txt | grep -i "Drupal" > CMS/drupal.txt
+cat alive.txt | grep -i "Wordpress" > CMS/wordpress.txt
+cat alive.txt | grep -i "Adobe Experience Manager" > CMS/aem.txt
+cat alive.txt | grep -i "Drupal" > CMS/drupal.txt
+cat alive.txt | grep -i "Impress" > CMS/impress.txt
 
 # gau
 printf "${red}\nGetting URLs via gau...${reset}\n"
-cat allAlive.txt | gau --subs --threads 200 --o allUrls1.txt
+cat alive.txt | gau --subs --threads 200 --o urls1.txt
 
 # katana
 printf "${red}\nGetting URLs via katana...${reset}\n"
-katana -list allAliveWeb.txt -jc -f qurl -c 50 -d 5 -kf all -o allUrls2.txt
+katana -list alive.txt -jc -f qurl -c 50 -d 5 -kf all -o urls2.txt
 
 # gf
-cat allUrls* | anew allUrls.txt
+cat urls* | anew allUrls.txt
 mkdir -p GF
 cat allUrls.txt | gf xss > GF/xss
 cat allUrls.txt | gf sqli > GF/sqli
